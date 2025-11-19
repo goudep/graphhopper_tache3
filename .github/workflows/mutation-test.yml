@@ -2,9 +2,9 @@ name: Mutation Testing & Rickroll
 
 on:
   push:
-    branches: [ master, main ]
+    branches: [ '**' ]      # Allow all branches be triggered
   pull_request:
-    branches: [ master, main ]
+    branches: [ '**' ]      
 
 jobs:
   mutation-testing:
