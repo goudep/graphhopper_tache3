@@ -45,7 +45,7 @@ jobs:
         run: |
           mvn -pl web-bundle org.pitest:pitest-maven:mutationCoverage
 
-      # 5. Compare Scores and Fail if Dropped (Fixed Calculation Logic)
+      # 5. Compare Scores and Fail if Dropped (Robust Version)
       - name: Check Mutation Score
         id: check_score
         run: |
@@ -53,29 +53,31 @@ jobs:
           
           REPORT_PATH="web-bundle/target/pit-reports/mutations.xml"
           
+          # 1. Check if report exists
           if [ ! -f "$REPORT_PATH" ]; then
-            echo "Error: PITest report not found at $REPORT_PATH"
+            echo "::error::PITest report not found at $REPORT_PATH. Did the previous step fail?"
             exit 1
           fi
 
-          # --- FIX: Calculate score manually from XML count ---
-          # Count total mutations
-          TOTAL=$(grep -c "<mutation" "$REPORT_PATH")
-          # Count killed mutations
-          KILLED=$(grep -c 'status="KILLED"' "$REPORT_PATH")
+          # 2. Calculate score manually (Robust grep)
+          # "|| echo 0" is CRITICAL here. Without it, if grep finds 0 matches, 
+          # it returns exit code 1 and kills the GitHub Action immediately.
+          TOTAL=$(grep -c "<mutation" "$REPORT_PATH" || echo 0)
+          KILLED=$(grep -c 'status="KILLED"' "$REPORT_PATH" || echo 0)
           
+          echo "Debug: Found Total: $TOTAL, Killed: $KILLED"
+
           if [ "$TOTAL" -eq 0 ]; then
-             echo "No mutations found. Score: 0%"
+             echo "Warning: No mutations found in report. Score defaulting to 0%."
              CURRENT_SCORE=0
           else
              # Calculate percentage (integer math)
              CURRENT_SCORE=$(( 100 * KILLED / TOTAL ))
           fi
           
-          echo "Total Mutations: $TOTAL, Killed: $KILLED"
           echo "Current Mutation Score: $CURRENT_SCORE%"
 
-          # Retrieve previous score (default to 0 if first run)
+          # 3. Retrieve previous score (default to 0 if first run)
           PREV_SCORE=0
           if [ -f previous_data/score.txt ]; then
             PREV_SCORE=$(cat previous_data/score.txt)
@@ -83,17 +85,17 @@ jobs:
           
           echo "Previous Mutation Score: $PREV_SCORE%"
 
-          # Save current score for the NEXT run
+          # 4. Save current score for the NEXT run (before we potentially fail)
           echo "$CURRENT_SCORE" > score.txt
 
-          # Compare: Fail if score dropped
+          # 5. Compare logic
           if (( CURRENT_SCORE < PREV_SCORE )); then
             echo "::error::Mutation score dropped from $PREV_SCORE% to $CURRENT_SCORE%!"
             exit 1
           else
             echo "Mutation score is stable or improved ($CURRENT_SCORE% >= $PREV_SCORE%). Good job!"
           fi
-
+          
       # 6. Upload Current Score as Artifact (Persistence)
       # "always()" ensures this runs even if the test failed, 
       # but logically we only want to update the baseline if we decide that is the policy.
