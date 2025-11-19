@@ -45,61 +45,53 @@ jobs:
         run: |
           mvn -pl web-bundle org.pitest:pitest-maven:mutationCoverage
 
-      # 5. Compare Scores and Fail if Dropped (Robust & Sanitized)
+      # 5. Compare Scores (Fixing syntax error & handling 0%)
       - name: Check Mutation Score
         id: check_score
         run: |
           echo "Analyzing Mutation Score..."
           
           REPORT_PATH="web-bundle/target/pit-reports/mutations.xml"
-          
-          # 1. Validate Report Existence
           if [ ! -f "$REPORT_PATH" ]; then
-            echo "::error::PITest report not found at $REPORT_PATH."
+            echo "::error::PITest report not found."
             exit 1
           fi
 
-          # 2. Extract Data (with fallbacks)
-          TOTAL=$(grep -c "<mutation" "$REPORT_PATH" || echo 0)
-          KILLED=$(grep -c 'status="KILLED"' "$REPORT_PATH" || echo 0)
+          # --- 关键修复：使用 tr -cd '0-9' 过滤掉所有空格和换行符，防止脚本崩溃 ---
+          TOTAL=$(grep -c "<mutation" "$REPORT_PATH" | tr -cd '0-9' || echo 0)
+          KILLED=$(grep -c 'status="KILLED"' "$REPORT_PATH" | tr -cd '0-9' || echo 0)
           
-          echo "Debug: Total Mutations: $TOTAL, Killed: $KILLED"
+          echo "Debug: Total=$TOTAL, Killed=$KILLED"
 
-          # 3. Calculate Current Score
           if [ "$TOTAL" -gt 0 ]; then
              CURRENT_SCORE=$(( 100 * KILLED / TOTAL ))
           else
-             echo "Warning: Total mutations is 0. Defaulting score to 0."
              CURRENT_SCORE=0
           fi
           
-          echo "Current Score Calculated: $CURRENT_SCORE"
+          echo "Current Score: $CURRENT_SCORE%"
 
-          # 4. Retrieve & Sanitize Previous Score
+          # 读取旧分数 (如果文件内容损坏，默认为0)
           PREV_SCORE=0
           SCORE_FILE="previous_data/score.txt"
-          
           if [ -f "$SCORE_FILE" ]; then
-            RAW_CONTENT=$(cat "$SCORE_FILE")
-            # Use regex to check if content is a valid integer. If not, ignore it.
-            if [[ "$RAW_CONTENT" =~ ^[0-9]+$ ]]; then
-              PREV_SCORE=$RAW_CONTENT
-            else
-              echo "Warning: Corrupted score file content '$RAW_CONTENT'. Resetting baseline to 0."
+            RAW=$(cat "$SCORE_FILE" | tr -cd '0-9')
+            if [ -n "$RAW" ]; then
+              PREV_SCORE=$RAW
             fi
           fi
           
-          echo "Previous Valid Score: $PREV_SCORE"
+          echo "Previous Score: $PREV_SCORE%"
 
-          # 5. Save Current Score (for next run)
+          # 保存当前分数
           echo "$CURRENT_SCORE" > score.txt
 
-          # 6. Compare Logic
+          # --- 核心逻辑：如果分数下降，则失败 ---
           if (( CURRENT_SCORE < PREV_SCORE )); then
             echo "::error::Mutation score dropped from $PREV_SCORE% to $CURRENT_SCORE%!"
             exit 1
           else
-            echo "✅ Success! Mutation score is stable or improved ($CURRENT_SCORE% >= $PREV_SCORE%)."
+            echo "✅ Score is stable or improved."
           fi
           
       # 6. Upload Current Score as Artifact (Persistence)

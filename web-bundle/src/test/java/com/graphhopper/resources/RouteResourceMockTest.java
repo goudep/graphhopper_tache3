@@ -4,11 +4,13 @@ package com.graphhopper.resources;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-
+import org.mockito.ArgumentCaptor;
 // Mockito imports
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 // GraphHopper imports
@@ -142,6 +144,15 @@ public class RouteResourceMockTest {
         // Note: doPost returns a JSON object, not GHResponse
         // We need to verify response status and content type
         assertEquals(MediaType.APPLICATION_JSON, httpResponse.getMediaType().toString(), "Response type should be JSON");
+    
+        // 验证：确保 route 方法被调用了一次
+        verify(mockGraphHopper, times(1)).route(any(GHRequest.class));
+
+        // 验证：确保传给 route 方法的参数是正确的（比如 profile 必须是 "car"）
+        // 这能杀死那些 "把参数改成 null" 或者 "修改字符串" 的变异体
+        ArgumentCaptor<GHRequest> captor = ArgumentCaptor.forClass(GHRequest.class);
+        verify(mockGraphHopper).route(captor.capture());
+        assertEquals("car", captor.getValue().getProfile());
     }
 
     /**
