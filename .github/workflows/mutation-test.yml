@@ -71,7 +71,6 @@ jobs:
           
           echo "Current Score: $CURRENT_SCORE%"
 
-          # 读取旧分数 (如果文件内容损坏，默认为0)
           PREV_SCORE=0
           SCORE_FILE="previous_data/score.txt"
           if [ -f "$SCORE_FILE" ]; then
@@ -83,10 +82,10 @@ jobs:
           
           echo "Previous Score: $PREV_SCORE%"
 
-          # 保存当前分数
+          # Save current score
           echo "$CURRENT_SCORE" > score.txt
 
-          # --- 核心逻辑：如果分数下降，则失败 ---
+          # --- If the score drops, fail the build ---
           if (( CURRENT_SCORE < PREV_SCORE )); then
             echo "::error::Mutation score dropped from $PREV_SCORE% to $CURRENT_SCORE%!"
             exit 1
@@ -108,14 +107,7 @@ jobs:
 
       # 7. Rickroll on Failure (Tâche 5)
       # This step only runs if any previous step failed (if: failure())
-      - name: Rickroll Payload
+      # Uses a reusable action for better maintainability
+      - name: Rickroll on Failure
         if: failure()
-        run: |
-          echo "=================================================="
-          echo "🚫 BUILD FAILED! YOU KNOW THE RULES, AND SO DO I 🚫"
-          echo "=================================================="
-          echo "🎵 Never gonna give you up"
-          echo "🎵 Never gonna let you down"
-          echo "🎵 Never gonna run around and desert you"
-          echo "=================================================="
-          echo "Open for a surprise: https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        uses: ./.github/actions/rickroll-action
