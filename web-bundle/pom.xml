@@ -200,6 +200,26 @@
                     </execution>
                 </executions>
             </plugin>
+            <!--PITest-->
+            <plugin>
+                <groupId>org.pitest</groupId>
+                <artifactId>pitest-maven</artifactId>
+                <version>1.15.3</version>
+                <configuration>
+                    <targetClasses>
+                        <param>com.graphhopper.resources.*</param>
+                    </targetClasses>
+                    <targetTests>
+                        <param>com.graphhopper.resources.*Test</param>
+                    </targetTests>
+                    <outputFormats>
+                        <outputFormat>XML</outputFormat>
+                        <outputFormat>HTML</outputFormat>
+                    </outputFormats>
+                    <timestampedReports>false</timestampedReports>
+                </configuration>
+            </plugin>
+
         </plugins>
     </build>
 </project>
