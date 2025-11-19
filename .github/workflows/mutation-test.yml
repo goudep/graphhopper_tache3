@@ -34,8 +34,13 @@ jobs:
           if_no_artifact_found: warn # Start fresh if no history exists
           search_artifacts: true     # Search in previous successful runs
 
+      # 3.5 Build the project first (New Step!)
+      # We need to install 'core' and other modules to the local repository 
+      # so 'web-bundle' can find its dependencies. We skip tests here to save time.
+      - name: Build Project (Install Dependencies)
+        run: mvn install -DskipTests -Dmaven.javadoc.skip=true
+
       # 4. Run PITest on web-bundle module only
-      # We limit to web-bundle to save time. Configuration is in pom.xml.
       - name: Run PITest (Mutation Testing)
         run: |
           mvn -pl web-bundle org.pitest:pitest-maven:mutationCoverage
