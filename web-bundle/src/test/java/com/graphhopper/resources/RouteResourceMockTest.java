@@ -222,14 +222,11 @@ public class RouteResourceMockTest {
         verify(mockProfileResolver, times(1)).resolveProfile(any());
     }
 
-    /**
-     * Test 3: Verifies that GHRequestTransformer is properly invoked and its transformed request
-     * is used for routing. This test focuses on the GHRequestTransformer mock behavior.
-     * 
-     * Rationale: The GHRequestTransformer allows modifying requests before routing (e.g., adding
-     * default parameters, transforming coordinates). We need to ensure RouteResource correctly
-     * uses the transformed request, not the original one.
-     */
+    // ============================================================
+    // Tests 3-9 commented out to demonstrate mutation score drop
+    // This demonstrates how the workflow fails when score decreases
+    // ============================================================
+    /*
     @Test
     public void testRoutePost_GHRequestTransformer_TransformsRequest() {
         // 1. ARRANGE (define mocks and test data)
@@ -574,6 +571,7 @@ public class RouteResourceMockTest {
      * Test 9: Verifies that doPost correctly handles curbsides parameter for ProfileResolver.
      * This tests the has_curbsides hint logic.
      */
+    /*
     @Test
     public void testRoutePost_HandlesCurbsidesParameter() {
         // 1. ARRANGE
@@ -619,4 +617,5 @@ public class RouteResourceMockTest {
         verify(mockGraphHopper, times(1)).route(any(GHRequest.class));
         verify(mockGHRequestTransformer, times(1)).transformRequest(any(GHRequest.class));
     }
+    */
 }
