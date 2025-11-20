@@ -80,7 +80,8 @@ public class RouteResourceMockTest {
         // Configure all mocks first, then create RouteResource instance
         
         // Configure GraphHopperConfig mock default behavior (must be done before creating RouteResource)
-        when(mockGraphHopperConfig.getString(any(String.class), any(String.class))).thenAnswer(invocation -> {
+        // Use lenient() because some tests may not use all methods
+        org.mockito.Mockito.lenient().when(mockGraphHopperConfig.getString(any(String.class), any(String.class))).thenAnswer(invocation -> {
             String defaultValue = invocation.getArgument(1);
             return defaultValue != null ? defaultValue : "";
         });
@@ -88,16 +89,19 @@ public class RouteResourceMockTest {
         org.mockito.Mockito.lenient().when(mockGraphHopperConfig.getCopyrights()).thenReturn(List.of("GraphHopper", "OpenStreetMap contributors"));
         
         // Configure GraphHopper mock's getProperties() method
-        when(mockGraphHopper.getProperties()).thenReturn(mockStorableProperties);
-        when(mockStorableProperties.getAll()).thenReturn(new java.util.HashMap<>());
+        // Use lenient() because some tests may not use GraphHopper
+        org.mockito.Mockito.lenient().when(mockGraphHopper.getProperties()).thenReturn(mockStorableProperties);
+        org.mockito.Mockito.lenient().when(mockStorableProperties.getAll()).thenReturn(new java.util.HashMap<>());
         
         // Configure GHRequestTransformer mock default behavior (returns original request)
-        when(mockGHRequestTransformer.transformRequest(any(GHRequest.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        // Use lenient() because some tests may override this behavior
+        org.mockito.Mockito.lenient().when(mockGHRequestTransformer.transformRequest(any(GHRequest.class))).thenAnswer(invocation -> invocation.getArgument(0));
         
         // Configure HttpServletRequest mock default behavior
-        when(mockHttpServletRequest.getRemoteAddr()).thenReturn("127.0.0.1");
-        when(mockHttpServletRequest.getLocale()).thenReturn(java.util.Locale.ENGLISH);
-        when(mockHttpServletRequest.getHeader("User-Agent")).thenReturn("Test-Agent");
+        // Use lenient() because some tests may not use all methods
+        org.mockito.Mockito.lenient().when(mockHttpServletRequest.getRemoteAddr()).thenReturn("127.0.0.1");
+        org.mockito.Mockito.lenient().when(mockHttpServletRequest.getLocale()).thenReturn(java.util.Locale.ENGLISH);
+        org.mockito.Mockito.lenient().when(mockHttpServletRequest.getHeader("User-Agent")).thenReturn("Test-Agent");
         
         // Now create RouteResource instance
         routeResource = new RouteResource(
@@ -482,6 +486,16 @@ public class RouteResourceMockTest {
         request.setProfile(""); // empty string
         request.setCustomModel(new CustomModel());
         
+        // Configure transformer to return the same request (preserving empty profile)
+        when(mockGHRequestTransformer.transformRequest(any(GHRequest.class))).thenAnswer(invocation -> {
+            GHRequest original = invocation.getArgument(0);
+            // Return a new request with the same empty profile
+            GHRequest transformed = new GHRequest(original.getPoints());
+            transformed.setProfile(""); // Keep profile empty
+            transformed.setCustomModel(original.getCustomModel());
+            return transformed;
+        });
+        
         // 2. ACT & ASSERT
         IllegalArgumentException exception = org.junit.jupiter.api.Assertions.assertThrows(
             IllegalArgumentException.class,
@@ -492,9 +506,15 @@ public class RouteResourceMockTest {
         // 3. ASSERT
         assertTrue(exception.getMessage().contains("profile") && exception.getMessage().contains("custom_model"),
             "Exception message should mention profile and custom_model");
+        assertEquals("The 'profile' parameter is required when you use the `custom_model` parameter",
+            exception.getMessage(), "Exception message should match exactly");
         
         // Verify that GraphHopper.route was NOT called (validation happens before routing)
         verify(mockGraphHopper, times(0)).route(any(GHRequest.class));
+        // Verify that transformRequest was called
+        verify(mockGHRequestTransformer, times(1)).transformRequest(any(GHRequest.class));
+        // Verify that ProfileResolver was NOT called (validation happens before profile resolution)
+        verify(mockProfileResolver, times(0)).resolveProfile(any());
     }
     
     /**
