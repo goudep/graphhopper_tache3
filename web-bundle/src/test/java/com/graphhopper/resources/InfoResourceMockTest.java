@@ -2,6 +2,7 @@ package com.graphhopper.resources;
 
 // JUnit 5 imports
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -158,8 +159,11 @@ public class InfoResourceMockTest {
      * Simulated values:
      * - Elevation: true (different from default false)
      * - Profiles: "car"
+     * 
+     * DISABLED: Temporarily disabled to test mutation score drop detection in GitHub Actions workflow
      */
     @Test
+    @Disabled("Disabled to test mutation score drop detection - workflow should fail and show rickroll")
     public void testGetInfo_HandlesElevationFlag() {
         // 1. ARRANGE
         Profile carProfile = new Profile("car");
@@ -188,8 +192,11 @@ public class InfoResourceMockTest {
      * - Profiles: "car"
      * - GTFS file: configured (has("gtfs.file") returns true)
      * - Expected: "pt" profile should be added to the list
+     * 
+     * DISABLED: Temporarily disabled to test mutation score drop detection in GitHub Actions workflow
      */
     @Test
+    @Disabled("Disabled to test mutation score drop detection - workflow should fail and show rickroll")
     public void testGetInfo_AddsPtProfileWhenGtfsConfigured() {
         // 1. ARRANGE
         Profile carProfile = new Profile("car");
