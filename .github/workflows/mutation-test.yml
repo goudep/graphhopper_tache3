@@ -57,11 +57,33 @@ jobs:
             exit 1
           fi
 
-          # --- 关键修复：使用 tr -cd '0-9' 过滤掉所有空格和换行符，防止脚本崩溃 ---
-          TOTAL=$(grep -c "<mutation" "$REPORT_PATH" | tr -cd '0-9' || echo 0)
-          KILLED=$(grep -c 'status="KILLED"' "$REPORT_PATH" | tr -cd '0-9' || echo 0)
+          # Parse XML report - PITest uses <mutation> tags with status attribute
+          # Count total mutations (all <mutation> opening tags)
+          TOTAL=$(grep -o "<mutation" "$REPORT_PATH" | wc -l)
+          TOTAL=$(echo "$TOTAL" | tr -d '[:space:]')
+          
+          # Count killed mutations - PITest uses status="KILLED" (with double quotes)
+          # Use -o to extract only the matching part, then count lines
+          KILLED=$(grep -o 'status="KILLED"' "$REPORT_PATH" | wc -l)
+          KILLED=$(echo "$KILLED" | tr -d '[:space:]')
+          
+          # If no matches with double quotes, try single quotes
+          if [ "$KILLED" -eq 0 ]; then
+            KILLED=$(grep -o "status='KILLED'" "$REPORT_PATH" | wc -l)
+            KILLED=$(echo "$KILLED" | tr -d '[:space:]')
+          fi
+          
+          # Ensure we have valid numbers
+          if [ -z "$TOTAL" ] || [ "$TOTAL" = "" ]; then
+            TOTAL=0
+          fi
+          if [ -z "$KILLED" ] || [ "$KILLED" = "" ]; then
+            KILLED=0
+          fi
           
           echo "Debug: Total=$TOTAL, Killed=$KILLED"
+          echo "Debug: Verifying report format (showing first mutation line):"
+          grep -m 1 "<mutation" "$REPORT_PATH" | head -c 200 || echo "No mutations found"
 
           if [ "$TOTAL" -gt 0 ]; then
              CURRENT_SCORE=$(( 100 * KILLED / TOTAL ))
