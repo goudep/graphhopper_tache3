@@ -9,9 +9,11 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.reset;
 
 // GraphHopper imports
 import com.graphhopper.GraphHopper;
@@ -266,10 +268,21 @@ public class RouteResourceMockTest {
     @Test
     public void testRoutePost_GraphHopperConfig_ReadsSnapPreventionsDefault() {
         // 1. ARRANGE (define mocks and test data)
+        // Reset the mock to clear previous configurations from setUp()
+        reset(mockGraphHopperConfig);
+        
         // Configure GraphHopperConfig to return a specific snap_preventions_default value
         String expectedSnapPreventions = "tunnel,bridge";
         when(mockGraphHopperConfig.getString("routing.snap_preventions_default", ""))
             .thenReturn(expectedSnapPreventions);
+        // Reconfigure other required methods
+        org.mockito.Mockito.lenient().when(mockGraphHopperConfig.getCopyrights())
+            .thenReturn(List.of("GraphHopper", "OpenStreetMap contributors"));
+        
+        // Ensure GraphHopper and StorableProperties mocks are still configured
+        // (they are needed in RouteResource constructor)
+        when(mockGraphHopper.getProperties()).thenReturn(mockStorableProperties);
+        when(mockStorableProperties.getAll()).thenReturn(new java.util.HashMap<>());
         
         // Recreate RouteResource with the new config mock behavior
         // Note: We need to recreate it because snapPreventionsDefault is set in constructor
@@ -310,8 +323,9 @@ public class RouteResourceMockTest {
         assertEquals(200, httpResponse.getStatus(), "HTTP response status should be 200 (OK)");
         
         // Verify that GraphHopperConfig.getString was called to read the default
+        // It should be called once in the constructor when we recreate RouteResource
         verify(mockGraphHopperConfig, times(1))
-            .getString("routing.snap_preventions_default", "");
+            .getString(eq("routing.snap_preventions_default"), eq(""));
         
         // Verify that the request passed to GraphHopper has the default snap preventions
         ArgumentCaptor<GHRequest> captor = ArgumentCaptor.forClass(GHRequest.class);
