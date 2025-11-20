@@ -115,8 +115,10 @@ public class RouteResourceMockTest {
     }
 
     // --- Test Case 1: Happy Path Scenario ---
+    // Disabled to test alternative scenario: disable tests 1-2 instead of 3-9
 
     @Test
+    @Disabled("Disabled to test alternative scenario: demonstrate mutation score drop by disabling core tests")
     public void testRoutePost_HappyPath() {
         // 1. ARRANGE (define mocks and test data)
         GHRequest request = new GHRequest(List.of(new GHPoint(40, -74), new GHPoint(40.1, -74.1)));
@@ -177,6 +179,7 @@ public class RouteResourceMockTest {
      * (e.g., point not found), RouteResource handles the error and throws MultiException.
      */
     @Test
+    @Disabled("Disabled to test alternative scenario: demonstrate mutation score drop by disabling core tests")
     public void testRoutePost_ErrorPath_PointNotFound() {
         // 1. ARRANGE (define mocks)
         GHRequest request = new GHRequest(List.of(new GHPoint(0, 0), new GHPoint(1, 1)));
@@ -224,11 +227,10 @@ public class RouteResourceMockTest {
     }
 
     // ============================================================
-    // Tests 3-9 disabled to demonstrate mutation score drop
-    // This demonstrates how the workflow fails when score decreases
+    // Tests 3-9: Re-enabled for alternative test scenario
+    // Testing: disable tests 1-2 instead of 3-9 to verify workflow works
     // ============================================================
     @Test
-    @Disabled("Disabled to demonstrate mutation score drop")
     public void testRoutePost_GHRequestTransformer_TransformsRequest() {
         // 1. ARRANGE (define mocks and test data)
         GHRequest originalRequest = new GHRequest(List.of(new GHPoint(40, -74), new GHPoint(40.1, -74.1)));
@@ -294,7 +296,6 @@ public class RouteResourceMockTest {
      * is correctly applied. This tests the integration with GraphHopperConfig.
      */
     @Test
-    @Disabled("Disabled to demonstrate mutation score drop")
     public void testRoutePost_GraphHopperConfig_ReadsSnapPreventionsDefault() {
         // 1. ARRANGE (define mocks and test data)
         // Reset the mock to clear previous configurations from setUp()
@@ -380,7 +381,6 @@ public class RouteResourceMockTest {
      * This tests the hasSnapPreventions() check in doPost.
      */
     @Test
-    @Disabled("Disabled to demonstrate mutation score drop")
     public void testRoutePost_RequestHasSnapPreventions_NotOverridden() {
         // 1. ARRANGE
         GHRequest request = new GHRequest(List.of(new GHPoint(60, 20), new GHPoint(60.1, 20.1)));
@@ -433,7 +433,6 @@ public class RouteResourceMockTest {
      * This tests that RouteResource correctly measures and reports execution time.
      */
     @Test
-    @Disabled("Disabled to demonstrate mutation score drop")
     public void testRoutePost_ResponseIncludesTimingHeader() {
         // 1. ARRANGE
         GHRequest request = new GHRequest(List.of(new GHPoint(30, -100), new GHPoint(30.1, -100.1)));
@@ -480,7 +479,6 @@ public class RouteResourceMockTest {
      * but profile is empty. This tests the validation logic in doPost.
      */
     @Test
-    @Disabled("Disabled to demonstrate mutation score drop")
     public void testRoutePost_CustomModelWithoutProfile_ThrowsException() {
         // 1. ARRANGE
         GHRequest request = new GHRequest(List.of(new GHPoint(40, -74), new GHPoint(40.1, -74.1)));
@@ -524,7 +522,6 @@ public class RouteResourceMockTest {
      * This tests the hint reading logic which has many mutations.
      */
     @Test
-    @Disabled("Disabled to demonstrate mutation score drop")
     public void testRoutePost_HandlesHintsParameters() {
         // 1. ARRANGE
         GHRequest request = new GHRequest(List.of(new GHPoint(40, -74), new GHPoint(40.1, -74.1)));
@@ -578,7 +575,6 @@ public class RouteResourceMockTest {
      * This tests the has_curbsides hint logic.
      */
     @Test
-    @Disabled("Disabled to demonstrate mutation score drop")
     public void testRoutePost_HandlesCurbsidesParameter() {
         // 1. ARRANGE
         GHRequest request = new GHRequest(List.of(new GHPoint(40, -74), new GHPoint(40.1, -74.1)));
