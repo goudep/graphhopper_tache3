@@ -37,3 +37,9 @@ jobs:
       - name: Build ${{ matrix.java-version }}
         run: mvn -B clean test
 
+      # Rickroll on test failure (Tâche 5)
+      # Adds humor to the test suite when tests fail
+      - name: Rickroll on Test Failure
+        if: failure()
+        uses: ./.github/actions/rickroll-action
+

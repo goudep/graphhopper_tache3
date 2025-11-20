@@ -1,0 +1,29 @@
+name: 'Rickroll Action'
+description: 'A humorous action that rickrolls when tests fail'
+author: 'GraphHopper Team'
+
+outputs:
+  rickroll-url:
+    description: 'The rickroll URL'
+    value: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Rickroll Payload
+      shell: bash
+      run: |
+        RICKROLL_URL="https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        echo "=================================================="
+        echo "🚫 BUILD FAILED! YOU KNOW THE RULES, AND SO DO I 🚫"
+        echo "=================================================="
+        echo "🎵 Never gonna give you up"
+        echo "🎵 Never gonna let you down"
+        echo "🎵 Never gonna run around and desert you"
+        echo "🎵 Never gonna make you cry"
+        echo "🎵 Never gonna say goodbye"
+        echo "🎵 Never gonna tell a lie and hurt you"
+        echo "=================================================="
+        echo "Open for a surprise: $RICKROLL_URL"
+        echo "=================================================="
+

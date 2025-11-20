@@ -1,0 +1,145 @@
+name: Mutation Testing & Rickroll
+
+on:
+  push:
+    branches: [ '**' ]      # Allow all branches be triggered
+  pull_request:
+    branches: [ '**' ]      
+
+jobs:
+  mutation-testing:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout the repository code
+      - uses: actions/checkout@v4
+
+      # 2. Set up JDK 17 (Standard for GraphHopper)
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      # 3. Download Previous Score (Design Choice: Persistence)
+      # We use 'dawidd6/action-download-artifact' because standard actions cannot 
+      # download artifacts from *previous* workflow runs, only the current one.
+      # Using v11 (latest version as of 2025) - see https://github.com/dawidd6/action-download-artifact
+      - name: Download previous mutation score
+        id: download_score
+        uses: dawidd6/action-download-artifact@v11
+        with:
+          name: mutation-score-report
+          path: previous_data/
+          if_no_artifact_found: warn # Start fresh if no history exists
+          search_artifacts: true     # Search in previous successful runs
+
+      # 3.5 Build the project first (New Step!)
+      # We need to install 'core' and other modules to the local repository 
+      # so 'web-bundle' can find its dependencies. We skip tests here to save time.
+      - name: Build Project (Install Dependencies)
+        run: mvn install -DskipTests -Dmaven.javadoc.skip=true
+
+      # 4. Run PITest on web-bundle module only
+      - name: Run PITest (Mutation Testing)
+        run: |
+          mvn -pl web-bundle org.pitest:pitest-maven:mutationCoverage
+
+      # 5. Compare Scores (Fixing syntax error & handling 0%)
+      - name: Check Mutation Score
+        id: check_score
+        run: |
+          echo "Analyzing Mutation Score..."
+          
+          REPORT_PATH="web-bundle/target/pit-reports/mutations.xml"
+          if [ ! -f "$REPORT_PATH" ]; then
+            echo "::error::PITest report not found."
+            exit 1
+          fi
+
+          # Parse XML report - PITest uses <mutation> tags with status attribute
+          # Count total mutations (all <mutation> opening tags)
+          TOTAL=$(grep -o "<mutation" "$REPORT_PATH" | wc -l)
+          TOTAL=$(echo "$TOTAL" | tr -d '[:space:]')
+          
+          # Count killed mutations - PITest uses status="KILLED" (with double quotes)
+          # Use -o to extract only the matching part, then count lines
+          KILLED=$(grep -o 'status="KILLED"' "$REPORT_PATH" | wc -l)
+          KILLED=$(echo "$KILLED" | tr -d '[:space:]')
+          
+          # If no matches with double quotes, try single quotes
+          if [ "$KILLED" -eq 0 ]; then
+            KILLED=$(grep -o "status='KILLED'" "$REPORT_PATH" | wc -l)
+            KILLED=$(echo "$KILLED" | tr -d '[:space:]')
+          fi
+          
+          # Ensure we have valid numbers
+          if [ -z "$TOTAL" ] || [ "$TOTAL" = "" ]; then
+            TOTAL=0
+          fi
+          if [ -z "$KILLED" ] || [ "$KILLED" = "" ]; then
+            KILLED=0
+          fi
+          
+          echo "Debug: Total=$TOTAL, Killed=$KILLED"
+          echo "Debug: Verifying report format (showing first mutation line):"
+          grep -m 1 "<mutation" "$REPORT_PATH" | head -c 200 || echo "No mutations found"
+
+          if [ "$TOTAL" -gt 0 ]; then
+             CURRENT_SCORE=$(( 100 * KILLED / TOTAL ))
+          else
+             CURRENT_SCORE=0
+          fi
+          
+          echo "Current Score: $CURRENT_SCORE%"
+
+          PREV_SCORE=0
+          SCORE_FILE="previous_data/score.txt"
+          if [ -f "$SCORE_FILE" ]; then
+            RAW=$(cat "$SCORE_FILE" | tr -cd '0-9')
+            if [ -n "$RAW" ]; then
+              PREV_SCORE=$RAW
+            fi
+          fi
+          
+          echo "Previous Score: $PREV_SCORE%"
+
+          # Save current score
+          echo "$CURRENT_SCORE" > score.txt
+
+          # --- If the score drops, fail the build ---
+          if (( CURRENT_SCORE < PREV_SCORE )); then
+            echo "::error::Mutation score dropped from $PREV_SCORE% to $CURRENT_SCORE%!"
+            exit 1
+          else
+            echo "✅ Score is stable or improved."
+          fi
+          
+      # 6. Upload Current Score as Artifact (Persistence)
+      # "always()" ensures this runs even if the test failed, 
+      # but logically we only want to update the baseline if we decide that is the policy.
+      # Here we upload it so the next run knows the latest state.
+      - name: Save mutation score
+        if: always() 
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-score-report
+          path: score.txt
+          overwrite: true
+
+      # 7. Upload PITest HTML Report for detailed analysis
+      - name: Upload PITest HTML Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pitest-html-report
+          path: web-bundle/target/pit-reports/
+          retention-days: 30
+
+      # 8. Rickroll on Failure (Tâche 5)
+      # This step only runs if any previous step failed (if: failure())
+      # Uses a reusable action for better maintainability
+      - name: Rickroll on Failure
+        if: failure()
+        uses: ./.github/actions/rickroll-action
