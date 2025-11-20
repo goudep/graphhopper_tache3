@@ -2,6 +2,7 @@ package com.graphhopper.resources;
 
 // JUnit 5 imports
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -154,7 +155,7 @@ public class RouteResourceMockTest {
     
         // Verify that route method was called exactly once
         verify(mockGraphHopper, times(1)).route(any(GHRequest.class));
-        
+
         // Verify that ProfileResolver was called
         verify(mockProfileResolver, times(1)).resolveProfile(any());
         
@@ -223,11 +224,11 @@ public class RouteResourceMockTest {
     }
 
     // ============================================================
-    // Tests 3-9 commented out to demonstrate mutation score drop
+    // Tests 3-9 disabled to demonstrate mutation score drop
     // This demonstrates how the workflow fails when score decreases
     // ============================================================
-    /*
     @Test
+    @Disabled("Disabled to demonstrate mutation score drop")
     public void testRoutePost_GHRequestTransformer_TransformsRequest() {
         // 1. ARRANGE (define mocks and test data)
         GHRequest originalRequest = new GHRequest(List.of(new GHPoint(40, -74), new GHPoint(40.1, -74.1)));
@@ -293,6 +294,7 @@ public class RouteResourceMockTest {
      * is correctly applied. This tests the integration with GraphHopperConfig.
      */
     @Test
+    @Disabled("Disabled to demonstrate mutation score drop")
     public void testRoutePost_GraphHopperConfig_ReadsSnapPreventionsDefault() {
         // 1. ARRANGE (define mocks and test data)
         // Reset the mock to clear previous configurations from setUp()
@@ -378,6 +380,7 @@ public class RouteResourceMockTest {
      * This tests the hasSnapPreventions() check in doPost.
      */
     @Test
+    @Disabled("Disabled to demonstrate mutation score drop")
     public void testRoutePost_RequestHasSnapPreventions_NotOverridden() {
         // 1. ARRANGE
         GHRequest request = new GHRequest(List.of(new GHPoint(60, 20), new GHPoint(60.1, 20.1)));
@@ -430,6 +433,7 @@ public class RouteResourceMockTest {
      * This tests that RouteResource correctly measures and reports execution time.
      */
     @Test
+    @Disabled("Disabled to demonstrate mutation score drop")
     public void testRoutePost_ResponseIncludesTimingHeader() {
         // 1. ARRANGE
         GHRequest request = new GHRequest(List.of(new GHPoint(30, -100), new GHPoint(30.1, -100.1)));
@@ -476,6 +480,7 @@ public class RouteResourceMockTest {
      * but profile is empty. This tests the validation logic in doPost.
      */
     @Test
+    @Disabled("Disabled to demonstrate mutation score drop")
     public void testRoutePost_CustomModelWithoutProfile_ThrowsException() {
         // 1. ARRANGE
         GHRequest request = new GHRequest(List.of(new GHPoint(40, -74), new GHPoint(40.1, -74.1)));
@@ -519,6 +524,7 @@ public class RouteResourceMockTest {
      * This tests the hint reading logic which has many mutations.
      */
     @Test
+    @Disabled("Disabled to demonstrate mutation score drop")
     public void testRoutePost_HandlesHintsParameters() {
         // 1. ARRANGE
         GHRequest request = new GHRequest(List.of(new GHPoint(40, -74), new GHPoint(40.1, -74.1)));
@@ -571,8 +577,8 @@ public class RouteResourceMockTest {
      * Test 9: Verifies that doPost correctly handles curbsides parameter for ProfileResolver.
      * This tests the has_curbsides hint logic.
      */
-    /*
     @Test
+    @Disabled("Disabled to demonstrate mutation score drop")
     public void testRoutePost_HandlesCurbsidesParameter() {
         // 1. ARRANGE
         GHRequest request = new GHRequest(List.of(new GHPoint(40, -74), new GHPoint(40.1, -74.1)));
@@ -617,5 +623,4 @@ public class RouteResourceMockTest {
         verify(mockGraphHopper, times(1)).route(any(GHRequest.class));
         verify(mockGHRequestTransformer, times(1)).transformRequest(any(GHRequest.class));
     }
-    */
 }
