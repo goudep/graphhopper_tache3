@@ -105,7 +105,16 @@ jobs:
           path: score.txt
           overwrite: true
 
-      # 7. Rickroll on Failure (Tâche 5)
+      # 7. Upload PITest HTML Report for detailed analysis
+      - name: Upload PITest HTML Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pitest-html-report
+          path: web-bundle/target/pit-reports/
+          retention-days: 30
+
+      # 8. Rickroll on Failure (Tâche 5)
       # This step only runs if any previous step failed (if: failure())
       # Uses a reusable action for better maintainability
       - name: Rickroll on Failure

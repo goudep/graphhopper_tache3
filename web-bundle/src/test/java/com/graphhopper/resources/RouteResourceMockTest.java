@@ -147,14 +147,23 @@ public class RouteResourceMockTest {
         // We need to verify response status and content type
         assertEquals(MediaType.APPLICATION_JSON, httpResponse.getMediaType().toString(), "Response type should be JSON");
     
-        // 验证：确保 route 方法被调用了一次
+        // Verify that route method was called exactly once
         verify(mockGraphHopper, times(1)).route(any(GHRequest.class));
+        
+        // Verify that ProfileResolver was called
+        verify(mockProfileResolver, times(1)).resolveProfile(any());
+        
+        // Verify that GHRequestTransformer was called
+        verify(mockGHRequestTransformer, times(1)).transformRequest(any(GHRequest.class));
 
-        // 验证：确保传给 route 方法的参数是正确的（比如 profile 必须是 "car"）
-        // 这能杀死那些 "把参数改成 null" 或者 "修改字符串" 的变异体
+        // Verify that the request passed to route has the correct profile
+        // This kills mutants that change parameters to null or modify strings
         ArgumentCaptor<GHRequest> captor = ArgumentCaptor.forClass(GHRequest.class);
         verify(mockGraphHopper).route(captor.capture());
-        assertEquals("car", captor.getValue().getProfile());
+        GHRequest capturedRequest = captor.getValue();
+        assertEquals("car", capturedRequest.getProfile(), "Profile should be 'car'");
+        assertNotNull(capturedRequest.getPoints(), "Points should not be null");
+        assertEquals(2, capturedRequest.getPoints().size(), "Should have 2 points");
     }
 
     /**
@@ -194,6 +203,18 @@ public class RouteResourceMockTest {
         
         PointNotFoundException pnf = (PointNotFoundException) firstError;
         assertEquals(0, pnf.getPointIndex(), "Point index should be 0");
+        
+        // Verify that GraphHopper.route was called (even though it returned an error)
+        verify(mockGraphHopper, times(1)).route(any(GHRequest.class));
+        // Verify that ProfileResolver was called
+        verify(mockProfileResolver, times(1)).resolveProfile(any());
+        // Verify that GHRequestTransformer was called
+        verify(mockGHRequestTransformer, times(1)).transformRequest(any(GHRequest.class));
+        
+        // Verify that GraphHopper.route was called (even though it returned an error)
+        verify(mockGraphHopper, times(1)).route(any(GHRequest.class));
+        // Verify that ProfileResolver was called
+        verify(mockProfileResolver, times(1)).resolveProfile(any());
     }
 
     /**
@@ -244,16 +265,20 @@ public class RouteResourceMockTest {
         // Verify that GHRequestTransformer.transformRequest was called with the original request
         verify(mockGHRequestTransformer, times(1)).transformRequest(originalRequest);
         
+        // Verify that ProfileResolver was called
+        verify(mockProfileResolver, times(1)).resolveProfile(any());
+        
         // Verify that GraphHopper.route was called with the TRANSFORMED request (not original)
         // This ensures RouteResource uses the transformer's output
         ArgumentCaptor<GHRequest> routeCaptor = ArgumentCaptor.forClass(GHRequest.class);
-        verify(mockGraphHopper).route(routeCaptor.capture());
+        verify(mockGraphHopper, times(1)).route(routeCaptor.capture());
         GHRequest routedRequest = routeCaptor.getValue();
         
         // The routed request should have the algorithm set by the transformer
         assertEquals("dijkstra", routedRequest.getAlgorithm(), 
             "Routed request should use the transformed request with algorithm from transformer");
         assertEquals("bike", routedRequest.getProfile(), "Profile should still be bike");
+        assertNotNull(routedRequest.getPoints(), "Points should not be null");
     }
 
     /**
@@ -338,5 +363,109 @@ public class RouteResourceMockTest {
         assertEquals(2, snapPreventions.size(), "Should have 2 snap preventions from config");
         assertTrue(snapPreventions.contains("tunnel"), "Should contain 'tunnel' from config");
         assertTrue(snapPreventions.contains("bridge"), "Should contain 'bridge' from config");
+        
+        // Verify that ProfileResolver was called
+        verify(mockProfileResolver, times(1)).resolveProfile(any());
+        // Verify that GHRequestTransformer was called
+        verify(mockGHRequestTransformer, times(1)).transformRequest(any(GHRequest.class));
+    }
+    
+    /**
+     * Test 5: Verifies that when request already has snapPreventions, 
+     * RouteResource does not override them with defaults.
+     * This tests the hasSnapPreventions() check in doPost.
+     */
+    @Test
+    public void testRoutePost_RequestHasSnapPreventions_NotOverridden() {
+        // 1. ARRANGE
+        GHRequest request = new GHRequest(List.of(new GHPoint(60, 20), new GHPoint(60.1, 20.1)));
+        request.setProfile("car");
+        // Set snap preventions explicitly - should NOT be overridden
+        request.setSnapPreventions(List.of("ferry", "toll"));
+        
+        GHResponse fakeResponse = new GHResponse();
+        ResponsePath fakePath = new ResponsePath();
+        fakePath.setDistance(3000.0);
+        fakePath.setTime(360000);
+        
+        PointList fakePoints = new PointList();
+        fakePoints.add(new GHPoint(60, 20));
+        fakePoints.add(new GHPoint(60.1, 20.1));
+        fakePath.setPoints(fakePoints);
+        
+        InstructionList instructions = new InstructionList(new TranslationMap().doImport().get("en"));
+        fakePath.setInstructions(instructions);
+        fakeResponse.add(fakePath);
+        
+        // Define mock behaviors
+        when(mockProfileResolver.resolveProfile(any())).thenReturn("car");
+        when(mockGraphHopper.route(any(GHRequest.class))).thenReturn(fakeResponse);
+        
+        // 2. ACT
+        Response httpResponse = routeResource.doPost(request, mockHttpServletRequest);
+        
+        // 3. ASSERT
+        assertEquals(200, httpResponse.getStatus(), "HTTP response status should be 200 (OK)");
+        
+        // Verify that the request passed to GraphHopper has the original snap preventions (not defaults)
+        ArgumentCaptor<GHRequest> captor = ArgumentCaptor.forClass(GHRequest.class);
+        verify(mockGraphHopper, times(1)).route(captor.capture());
+        GHRequest routedRequest = captor.getValue();
+        
+        List<String> snapPreventions = routedRequest.getSnapPreventions();
+        assertNotNull(snapPreventions, "Snap preventions should not be null");
+        assertEquals(2, snapPreventions.size(), "Should have 2 snap preventions from request");
+        assertTrue(snapPreventions.contains("ferry"), "Should contain 'ferry' from request");
+        assertTrue(snapPreventions.contains("toll"), "Should contain 'toll' from request");
+        
+        // Verify interactions
+        verify(mockProfileResolver, times(1)).resolveProfile(any());
+        verify(mockGHRequestTransformer, times(1)).transformRequest(any(GHRequest.class));
+    }
+    
+    /**
+     * Test 6: Verifies that Response includes X-GH-Took header with timing information.
+     * This tests that RouteResource correctly measures and reports execution time.
+     */
+    @Test
+    public void testRoutePost_ResponseIncludesTimingHeader() {
+        // 1. ARRANGE
+        GHRequest request = new GHRequest(List.of(new GHPoint(30, -100), new GHPoint(30.1, -100.1)));
+        request.setProfile("bike");
+        
+        GHResponse fakeResponse = new GHResponse();
+        ResponsePath fakePath = new ResponsePath();
+        fakePath.setDistance(1500.0);
+        fakePath.setTime(180000);
+        
+        PointList fakePoints = new PointList();
+        fakePoints.add(new GHPoint(30, -100));
+        fakePoints.add(new GHPoint(30.1, -100.1));
+        fakePath.setPoints(fakePoints);
+        
+        InstructionList instructions = new InstructionList(new TranslationMap().doImport().get("en"));
+        fakePath.setInstructions(instructions);
+        fakeResponse.add(fakePath);
+        
+        // Define mock behaviors
+        when(mockProfileResolver.resolveProfile(any())).thenReturn("bike");
+        when(mockGraphHopper.route(any(GHRequest.class))).thenReturn(fakeResponse);
+        
+        // 2. ACT
+        Response httpResponse = routeResource.doPost(request, mockHttpServletRequest);
+        
+        // 3. ASSERT
+        assertEquals(200, httpResponse.getStatus(), "HTTP response status should be 200 (OK)");
+        
+        // Verify that X-GH-Took header is present
+        String tookHeader = httpResponse.getHeaderString("X-GH-Took");
+        assertNotNull(tookHeader, "X-GH-Took header should be present");
+        // Header should contain a number (execution time in milliseconds)
+        assertTrue(tookHeader.matches("\\d+"), "X-GH-Took should be a number");
+        
+        // Verify interactions
+        verify(mockGraphHopper, times(1)).route(any(GHRequest.class));
+        verify(mockProfileResolver, times(1)).resolveProfile(any());
+        verify(mockGHRequestTransformer, times(1)).transformRequest(any(GHRequest.class));
     }
 }
