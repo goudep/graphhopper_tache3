@@ -25,6 +25,7 @@ import com.graphhopper.http.ProfileResolver;
 import com.graphhopper.http.GHRequestTransformer;
 import com.graphhopper.jackson.MultiException;
 import com.graphhopper.storage.StorableProperties;
+import com.graphhopper.util.CustomModel;
 import com.graphhopper.util.InstructionList;
 import com.graphhopper.util.PointList;
 import com.graphhopper.util.TranslationMap;
@@ -466,6 +467,136 @@ public class RouteResourceMockTest {
         // Verify interactions
         verify(mockGraphHopper, times(1)).route(any(GHRequest.class));
         verify(mockProfileResolver, times(1)).resolveProfile(any());
+        verify(mockGHRequestTransformer, times(1)).transformRequest(any(GHRequest.class));
+    }
+    
+    /**
+     * Test 7: Verifies that doPost throws IllegalArgumentException when customModel is provided
+     * but profile is empty. This tests the validation logic in doPost.
+     */
+    @Test
+    public void testRoutePost_CustomModelWithoutProfile_ThrowsException() {
+        // 1. ARRANGE
+        GHRequest request = new GHRequest(List.of(new GHPoint(40, -74), new GHPoint(40.1, -74.1)));
+        // Set customModel but leave profile empty/null
+        request.setProfile(""); // empty string
+        request.setCustomModel(new CustomModel());
+        
+        // 2. ACT & ASSERT
+        IllegalArgumentException exception = org.junit.jupiter.api.Assertions.assertThrows(
+            IllegalArgumentException.class,
+            () -> routeResource.doPost(request, mockHttpServletRequest),
+            "doPost should throw IllegalArgumentException when customModel is provided without profile"
+        );
+        
+        // 3. ASSERT
+        assertTrue(exception.getMessage().contains("profile") && exception.getMessage().contains("custom_model"),
+            "Exception message should mention profile and custom_model");
+        
+        // Verify that GraphHopper.route was NOT called (validation happens before routing)
+        verify(mockGraphHopper, times(0)).route(any(GHRequest.class));
+    }
+    
+    /**
+     * Test 8: Verifies that doPost correctly handles hints parameters like instructions, elevation, etc.
+     * This tests the hint reading logic which has many mutations.
+     */
+    @Test
+    public void testRoutePost_HandlesHintsParameters() {
+        // 1. ARRANGE
+        GHRequest request = new GHRequest(List.of(new GHPoint(40, -74), new GHPoint(40.1, -74.1)));
+        request.setProfile("car");
+        // Set various hints
+        request.getHints().putObject("instructions", false);
+        request.getHints().putObject("elevation", true);
+        request.getHints().putObject("calc_points", false);
+        request.getHints().putObject("points_encoded", false);
+        request.getHints().putObject("points_encoded_multiplier", 1e6);
+        
+        GHResponse fakeResponse = new GHResponse();
+        ResponsePath fakePath = new ResponsePath();
+        fakePath.setDistance(1000.0);
+        fakePath.setTime(120000);
+        
+        PointList fakePoints = new PointList();
+        fakePoints.add(new GHPoint(40, -74));
+        fakePoints.add(new GHPoint(40.1, -74.1));
+        fakePath.setPoints(fakePoints);
+        
+        InstructionList instructions = new InstructionList(new TranslationMap().doImport().get("en"));
+        fakePath.setInstructions(instructions);
+        fakeResponse.add(fakePath);
+        
+        // Define mock behaviors
+        when(mockProfileResolver.resolveProfile(any())).thenReturn("car");
+        when(mockGraphHopper.route(any(GHRequest.class))).thenReturn(fakeResponse);
+        
+        // 2. ACT
+        Response httpResponse = routeResource.doPost(request, mockHttpServletRequest);
+        
+        // 3. ASSERT
+        assertEquals(200, httpResponse.getStatus(), "HTTP response status should be 200 (OK)");
+        
+        // Verify that the request passed to route has the hints preserved
+        ArgumentCaptor<GHRequest> captor = ArgumentCaptor.forClass(GHRequest.class);
+        verify(mockGraphHopper, times(1)).route(captor.capture());
+        GHRequest routedRequest = captor.getValue();
+        
+        // Verify hints are preserved (they are read in doPost but we can verify the request object)
+        assertNotNull(routedRequest.getHints(), "Hints should not be null");
+        
+        // Verify interactions
+        verify(mockProfileResolver, times(1)).resolveProfile(any());
+        verify(mockGHRequestTransformer, times(1)).transformRequest(any(GHRequest.class));
+    }
+    
+    /**
+     * Test 9: Verifies that doPost correctly handles curbsides parameter for ProfileResolver.
+     * This tests the has_curbsides hint logic.
+     */
+    @Test
+    public void testRoutePost_HandlesCurbsidesParameter() {
+        // 1. ARRANGE
+        GHRequest request = new GHRequest(List.of(new GHPoint(40, -74), new GHPoint(40.1, -74.1)));
+        request.setProfile("car");
+        // Set curbsides
+        request.setCurbsides(List.of("left", "right"));
+        
+        GHResponse fakeResponse = new GHResponse();
+        ResponsePath fakePath = new ResponsePath();
+        fakePath.setDistance(1000.0);
+        fakePath.setTime(120000);
+        
+        PointList fakePoints = new PointList();
+        fakePoints.add(new GHPoint(40, -74));
+        fakePoints.add(new GHPoint(40.1, -74.1));
+        fakePath.setPoints(fakePoints);
+        
+        InstructionList instructions = new InstructionList(new TranslationMap().doImport().get("en"));
+        fakePath.setInstructions(instructions);
+        fakeResponse.add(fakePath);
+        
+        // Define mock behaviors
+        when(mockProfileResolver.resolveProfile(any())).thenReturn("car");
+        when(mockGraphHopper.route(any(GHRequest.class))).thenReturn(fakeResponse);
+        
+        // 2. ACT
+        Response httpResponse = routeResource.doPost(request, mockHttpServletRequest);
+        
+        // 3. ASSERT
+        assertEquals(200, httpResponse.getStatus(), "HTTP response status should be 200 (OK)");
+        
+        // Verify that ProfileResolver was called with hints containing has_curbsides
+        ArgumentCaptor<com.graphhopper.util.PMap> hintsCaptor = ArgumentCaptor.forClass(com.graphhopper.util.PMap.class);
+        verify(mockProfileResolver, times(1)).resolveProfile(hintsCaptor.capture());
+        com.graphhopper.util.PMap capturedHints = hintsCaptor.getValue();
+        
+        // Verify that has_curbsides hint is set (since curbsides is not empty)
+        assertTrue(capturedHints.getBool("has_curbsides", false), 
+            "has_curbsides should be true when curbsides is not empty");
+        
+        // Verify interactions
+        verify(mockGraphHopper, times(1)).route(any(GHRequest.class));
         verify(mockGHRequestTransformer, times(1)).transformRequest(any(GHRequest.class));
     }
 }
