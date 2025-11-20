@@ -2,7 +2,6 @@ package com.graphhopper.resources;
 
 // JUnit 5 imports
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -115,10 +114,8 @@ public class RouteResourceMockTest {
     }
 
     // --- Test Case 1: Happy Path Scenario ---
-    // Disabled to test alternative scenario: disable tests 1-2 instead of 3-9
 
     @Test
-    @Disabled("Disabled to test alternative scenario: demonstrate mutation score drop by disabling core tests")
     public void testRoutePost_HappyPath() {
         // 1. ARRANGE (define mocks and test data)
         GHRequest request = new GHRequest(List.of(new GHPoint(40, -74), new GHPoint(40.1, -74.1)));
@@ -179,7 +176,6 @@ public class RouteResourceMockTest {
      * (e.g., point not found), RouteResource handles the error and throws MultiException.
      */
     @Test
-    @Disabled("Disabled to test alternative scenario: demonstrate mutation score drop by disabling core tests")
     public void testRoutePost_ErrorPath_PointNotFound() {
         // 1. ARRANGE (define mocks)
         GHRequest request = new GHRequest(List.of(new GHPoint(0, 0), new GHPoint(1, 1)));
@@ -226,10 +222,14 @@ public class RouteResourceMockTest {
         verify(mockProfileResolver, times(1)).resolveProfile(any());
     }
 
-    // ============================================================
-    // Tests 3-9: Re-enabled for alternative test scenario
-    // Testing: disable tests 1-2 instead of 3-9 to verify workflow works
-    // ============================================================
+    /**
+     * Test 3: Verifies that GHRequestTransformer is properly invoked and its transformed request
+     * is used for routing. This test focuses on the GHRequestTransformer mock behavior.
+     * 
+     * Rationale: The GHRequestTransformer allows modifying requests before routing (e.g., adding
+     * default parameters, transforming coordinates). We need to ensure RouteResource correctly
+     * uses the transformed request, not the original one.
+     */
     @Test
     public void testRoutePost_GHRequestTransformer_TransformsRequest() {
         // 1. ARRANGE (define mocks and test data)

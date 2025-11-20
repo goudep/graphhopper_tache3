@@ -25,9 +25,10 @@ jobs:
       # 3. Download Previous Score (Design Choice: Persistence)
       # We use 'dawidd6/action-download-artifact' because standard actions cannot 
       # download artifacts from *previous* workflow runs, only the current one.
+      # Using v11 (latest version as of 2025) - see https://github.com/dawidd6/action-download-artifact
       - name: Download previous mutation score
         id: download_score
-        uses: dawidd6/action-download-artifact@v6
+        uses: dawidd6/action-download-artifact@v11
         with:
           name: mutation-score-report
           path: previous_data/
